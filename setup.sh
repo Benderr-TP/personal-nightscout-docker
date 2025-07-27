@@ -32,6 +32,16 @@ print_info() {
     echo -e "${BLUE}ℹ${NC} $1"
 }
 
+# Check for required commands
+if ! command -v openssl >/dev/null 2>&1; then
+    print_error "openssl is required but not installed. Please install openssl and rerun the script."
+    exit 1
+fi
+if ! command -v sed >/dev/null 2>&1; then
+    print_error "sed is required but not installed. Please install sed and rerun the script."
+    exit 1
+fi
+
 # Check if .env file exists
 if [ -f ".env" ]; then
     print_warning ".env file already exists. This will overwrite it."
@@ -57,16 +67,16 @@ print_info "Generating secure secrets..."
 
 # Generate API_SECRET
 API_SECRET=$(openssl rand -base64 32)
-sed -i.bak "s/API_SECRET=.*/API_SECRET=$API_SECRET/" .env
+sed -i.bak "s|API_SECRET=.*|API_SECRET=$API_SECRET|" .env
 
 # Generate MongoDB password
 MONGO_PASSWORD=$(openssl rand -base64 24)
-sed -i.bak "s/MONGO_INITDB_ROOT_PASSWORD=.*/MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD/" .env
+sed -i.bak "s|MONGO_INITDB_ROOT_PASSWORD=.*|MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD|" .env
 
 print_status "Generated secure API_SECRET and MongoDB password"
 
 # Update MongoDB connection string
-sed -i.bak "s/MONGO_CONNECTION=.*/MONGO_CONNECTION=mongodb:\/\/root:$MONGO_PASSWORD@mongo:27017\/nightscout?authSource=admin/" .env
+sed -i.bak "s|MONGO_CONNECTION=.*|MONGO_CONNECTION=mongodb://root:$MONGO_PASSWORD@mongo:27017/nightscout?authSource=admin|" .env
 
 print_status "Updated MongoDB connection string"
 
@@ -74,26 +84,29 @@ print_status "Updated MongoDB connection string"
 print_info "Setting timezone..."
 read -p "Enter your timezone (e.g., America/New_York, Europe/London): " TZ
 if [ ! -z "$TZ" ]; then
-    sed -i.bak "s/TZ=.*/TZ=$TZ/" .env
+    sed -i.bak "s|TZ=.*|TZ=$TZ|" .env
     print_status "Set timezone to $TZ"
 fi
 
 # Ask for display units
 print_info "Setting display units..."
 read -p "Enter display units (mg/dl or mmol/L): " DISPLAY_UNITS
-if [ "$DISPLAY_UNITS" = "mmol/L" ]; then
-    sed -i.bak "s/DISPLAY_UNITS=.*/DISPLAY_UNITS=mmol\/L/" .env
+if [ "$DISPLAY_UNITS" = "mmol/L" ] || [ "$DISPLAY_UNITS" = "mmol/l" ]; then
+    sed -i.bak "s|DISPLAY_UNITS=.*|DISPLAY_UNITS=mmol/L|" .env
     print_status "Set display units to mmol/L"
-else
-    sed -i.bak "s/DISPLAY_UNITS=.*/DISPLAY_UNITS=mg\/dl/" .env
+elif [ "$DISPLAY_UNITS" = "mg/dl" ] || [ "$DISPLAY_UNITS" = "mg/dL" ]; then
+    sed -i.bak "s|DISPLAY_UNITS=.*|DISPLAY_UNITS=mg/dl|" .env
     print_status "Set display units to mg/dl"
+else
+    print_warning "Unrecognized input. Defaulting to mg/dl."
+    sed -i.bak "s|DISPLAY_UNITS=.*|DISPLAY_UNITS=mg/dl|" .env
 fi
 
 # Ask for custom title
 print_info "Setting custom title..."
 read -p "Enter custom title for your Nightscout site: " CUSTOM_TITLE
 if [ ! -z "$CUSTOM_TITLE" ]; then
-    sed -i.bak "s/CUSTOM_TITLE=.*/CUSTOM_TITLE=$CUSTOM_TITLE/" .env
+    sed -i.bak "s|CUSTOM_TITLE=.*|CUSTOM_TITLE=$CUSTOM_TITLE|" .env
     print_status "Set custom title to '$CUSTOM_TITLE'"
 fi
 

@@ -4,6 +4,8 @@ Custom Docker setup for deploying Nightscout on Proxmox.
 
 ## Quick Start
 
+### Basic Setup
+
 1. **Run the setup script:**
    ```bash
    ./setup.sh
@@ -29,6 +31,33 @@ Custom Docker setup for deploying Nightscout on Proxmox.
    ```bash
    docker-compose -f docker-compose.proxmox.yml up -d
    ```
+
+### With Cloudflare Tunnel (Recommended for Production)
+
+1. **Set up Nightscout:**
+   ```bash
+   ./setup.sh
+   ```
+
+2. **Set up Cloudflare Tunnel:**
+   ```bash
+   ./setup-cloudflare.sh
+   ```
+   This will:
+   - Install cloudflared
+   - Create a Cloudflare tunnel
+   - Configure your domain
+   - Set up HTTPS with SSL certificates
+   - Create management scripts
+
+3. **Start services:**
+   ```bash
+   docker-compose up -d
+   ```
+
+4. **Access your Nightscout instance:**
+   - Local: `http://localhost:1337`
+   - Cloudflare: `https://your-domain.com`
 
 ## Configuration
 
@@ -114,6 +143,18 @@ docker exec nightscout_mongo mongodump --out /data/db/backup
 ### Stop services
 ```bash
 docker-compose -f docker-compose.proxmox.yml down
+```
+
+### Cloudflare Tunnel Management
+```bash
+# Check tunnel status
+./tunnel-status.sh
+
+# View tunnel logs
+./tunnel-logs.sh
+
+# Restart tunnel
+./tunnel-restart.sh
 ```
 
 ## Security Notes
