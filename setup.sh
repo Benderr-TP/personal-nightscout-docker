@@ -53,14 +53,106 @@ if [ -f ".env" ]; then
     fi
 fi
 
-# Copy environment template
-if [ -f ".env.example" ]; then
-    cp .env.example .env
-    print_status "Created .env file from template"
-else
-    print_error ".env.example file not found!"
-    exit 1
-fi
+# Create .env file with default values
+print_info "Creating .env file with default values..."
+cat > .env << 'EOF'
+# Nightscout Environment Configuration
+
+# =============================================================================
+# REQUIRED SECURITY VARIABLES (CHANGE THESE!)
+# =============================================================================
+
+# API Secret - Used for API authentication (minimum 12 characters)
+API_SECRET=change_this_to_a_long_random_string
+
+# MongoDB Root Password (minimum 8 characters)
+MONGO_INITDB_ROOT_PASSWORD=change_this_password
+
+# MongoDB Connection String (auto-generated from password above)
+MONGO_CONNECTION=mongodb://root:change_this_password@mongo:27017/nightscout?authSource=admin
+
+# =============================================================================
+# BASIC CONFIGURATION
+# =============================================================================
+
+# Timezone (e.g., America/New_York, Europe/London, Asia/Tokyo)
+TZ=America/New_York
+
+# Display Units (mg/dl or mmol/L)
+DISPLAY_UNITS=mg/dl
+
+# Custom Title for your Nightscout site
+CUSTOM_TITLE=My Nightscout
+
+# =============================================================================
+# NIGHTSCOUT FEATURES
+# =============================================================================
+
+# Features to enable (space-separated list)
+ENABLE=careportal basal dbsize rawbg iob maker cob bwp cage iage sage boluscalc pushover treatmentnotify loop pump profile food openaps bage alexa override cors
+
+# Default features to show
+DEFAULT_FEATURES=careportal boluscalc food rawbg iob
+
+# =============================================================================
+# ALARM SETTINGS
+# =============================================================================
+
+# High blood glucose alarm (mg/dl)
+ALARM_HIGH=260
+
+# Low blood glucose alarm (mg/dl)
+ALARM_LOW=55
+
+# Urgent high blood glucose alarm (mg/dl)
+ALARM_URGENT_HIGH=370
+
+# Urgent low blood glucose alarm (mg/dl)
+ALARM_URGENT_LOW=40
+
+# =============================================================================
+# THEME AND LANGUAGE
+# =============================================================================
+
+# Theme (colors, colors-dark, default)
+THEME=colors
+
+# Language (en, de, fr, etc.)
+LANGUAGE=en
+
+# Authentication default roles
+AUTH_DEFAULT_ROLES=readable
+
+# =============================================================================
+# CLOUDFLARE TUNNEL CONFIGURATION
+# =============================================================================
+# These will be automatically set by setup-cloudflare.sh
+# You can also set them manually if needed
+
+# Cloudflare Tunnel Domain (e.g., nightscout.yourdomain.com)
+CLOUDFLARE_DOMAIN=
+
+# Cloudflare Tunnel ID (auto-generated during tunnel creation)
+CLOUDFLARE_TUNNEL_ID=
+
+# =============================================================================
+# ADVANCED SETTINGS (Optional)
+# =============================================================================
+
+# Node environment
+NODE_ENV=production
+
+# MongoDB collection name
+MONGO_COLLECTION=entries
+
+# Security headers for production
+INSECURE_USE_HTTP=false
+SECURE_HSTS_HEADER=true
+SECURE_HSTS_HEADER_INCLUDESUBDOMAINS=true
+SECURE_HSTS_HEADER_PRELOAD=true
+EOF
+
+print_status "Created .env file with default values"
 
 # Generate secure secrets
 print_info "Generating secure secrets..."

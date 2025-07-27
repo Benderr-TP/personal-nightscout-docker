@@ -351,15 +351,41 @@ chmod +x tunnel-restart.sh
 
 print_status "Management scripts created"
 
+# Test tunnel connection
+print_info "Testing tunnel connection..."
+sleep 5  # Give the tunnel a moment to start
+if curl -s -f "https://$DOMAIN" > /dev/null 2>&1; then
+    print_status "Tunnel connection test successful!"
+else
+    print_warning "Tunnel connection test failed. This is normal if DNS hasn't propagated yet."
+    print_info "DNS propagation can take a few minutes. You can test again later with:"
+    echo "  curl -I https://$DOMAIN"
+fi
+
 # Update .env file to include tunnel information
 if [ -f ".env" ]; then
     print_info "Updating .env file with tunnel information..."
-    echo "" >> .env
-    echo "# Cloudflare Tunnel Configuration" >> .env
-    echo "CLOUDFLARE_TUNNEL_NAME=$TUNNEL_NAME" >> .env
-    echo "CLOUDFLARE_DOMAIN=$DOMAIN" >> .env
-    echo "CLOUDFLARE_TUNNEL_ID=$TUNNEL_ID" >> .env
-    print_status "Updated .env file"
+    
+    # Update or add CLOUDFLARE_DOMAIN
+    if grep -q "^CLOUDFLARE_DOMAIN=" .env; then
+        sed -i.bak "s|^CLOUDFLARE_DOMAIN=.*|CLOUDFLARE_DOMAIN=$DOMAIN|" .env
+    else
+        echo "CLOUDFLARE_DOMAIN=$DOMAIN" >> .env
+    fi
+    
+    # Update or add CLOUDFLARE_TUNNEL_ID
+    if grep -q "^CLOUDFLARE_TUNNEL_ID=" .env; then
+        sed -i.bak "s|^CLOUDFLARE_TUNNEL_ID=.*|CLOUDFLARE_TUNNEL_ID=$TUNNEL_ID|" .env
+    else
+        echo "CLOUDFLARE_TUNNEL_ID=$TUNNEL_ID" >> .env
+    fi
+    
+    # Clean up backup files
+    rm -f .env.bak
+    
+    print_status "Updated .env file with Cloudflare tunnel information"
+else
+    print_warning ".env file not found. Please run ./setup.sh first."
 fi
 
 # Show next steps
@@ -386,4 +412,10 @@ echo "- Check tunnel status with: ./tunnel-status.sh"
 echo
 echo "📚 For more information, see:"
 echo "- https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/"
-echo "- https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/tunnel-guide/" 
+echo "- https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/tunnel-guide/"
+echo
+echo "🚀 Ready to start Nightscout!"
+echo "Run: docker-compose up -d"
+echo
+echo "🌐 Your Nightscout will be available at:"
+echo "   https://$DOMAIN" 
