@@ -208,7 +208,7 @@ credentials-file: $TUNNEL_DIR/$TUNNEL_ID.json
 
 ingress:
   - hostname: $DOMAIN
-    service: http://localhost:1337
+    service: http://localhost:8080
   - service: http_status:404
 EOF
 else
@@ -219,7 +219,7 @@ credentials-file: $TUNNEL_DIR/$TUNNEL_ID.json
 
 ingress:
   - hostname: $DOMAIN
-    service: http://localhost:1337
+    service: http://localhost:8080
   - service: http_status:404
 EOF
 fi
