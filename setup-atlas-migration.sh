@@ -251,37 +251,67 @@ print_step "5" "Importing Atlas data to new MongoDB instance"
 
 # Get MongoDB connection details from .env
 MONGO_PASSWORD=$(grep "MONGO_INITDB_ROOT_PASSWORD=" .env | cut -d'=' -f2)
-TARGET_CONNECTION="mongodb://root:$MONGO_PASSWORD@localhost:27017"
-
-# Map port for import (MongoDB runs on internal port 27017, but we need external access)
-print_info "Configuring MongoDB access for import..."
-
-# Create temporary docker-compose override for port mapping
-cat > docker-compose.import.yml << EOF
-version: '3.8'
-services:
-  mongo:
-    ports:
-      - "27017:27017"
-EOF
-
-# Restart with port mapping
-print_info "Restarting MongoDB with external access..."
-docker-compose -f docker-compose.yml -f docker-compose.import.yml up -d mongo
-
-# Wait for MongoDB to be accessible on external port
-sleep 10
-
-IMPORT_CMD="./import-to-vm.sh -d \"$EXPORT_DIR/$DATABASE_NAME\" -t \"$TARGET_CONNECTION\" -n \"$DATABASE_NAME\" --parallel 8 --workers 8"
-
-if [ "$USE_OPLOG" = true ]; then
-    IMPORT_CMD="$IMPORT_CMD --oplog"
+if [ -z "$MONGO_PASSWORD" ]; then
+    print_error "MongoDB password not found in .env file"
+    exit 1
 fi
 
-print_info "Starting data import..."
-print_info "This may take several minutes depending on your data size..."
+print_info "Starting MongoDB container for import..."
 
-if eval $IMPORT_CMD; then
+# Start MongoDB container without port mapping
+if docker-compose up -d mongo; then
+    print_status "MongoDB container started"
+else
+    print_error "Failed to start MongoDB container"
+    exit 1
+fi
+
+# Wait for MongoDB to be ready
+print_info "Waiting for MongoDB to be ready..."
+MONGO_READY=false
+
+for i in {1..30}; do
+    sleep 2
+    print_info "Checking MongoDB... (attempt $i/30)"
+    
+    if docker-compose exec -T mongo mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
+        print_status "MongoDB is ready"
+        MONGO_READY=true
+        break
+    elif [ $i -eq 30 ]; then
+        print_error "MongoDB failed to start after 60 seconds"
+        print_info "Check logs: docker-compose logs mongo"
+        exit 1
+    fi
+done
+
+# Import data directly to the container
+print_info "Starting data import to MongoDB container..."
+
+# Check if export directory exists and contains data
+if [ ! -d "$EXPORT_DIR/$DATABASE_NAME" ]; then
+    print_error "Export directory not found: $EXPORT_DIR/$DATABASE_NAME"
+    exit 1
+fi
+
+# Copy export data to container
+print_info "Copying export data to MongoDB container..."
+if docker cp "$EXPORT_DIR/$DATABASE_NAME" "nightscout_mongo:/tmp/import_data"; then
+    print_status "Export data copied to container"
+else
+    print_error "Failed to copy export data to container"
+    exit 1
+fi
+
+# Import data using mongorestore inside the container
+print_info "Importing data using mongorestore..."
+IMPORT_CMD="mongorestore --db $DATABASE_NAME --drop /tmp/import_data"
+
+if [ "$USE_OPLOG" = true ]; then
+    IMPORT_CMD="$IMPORT_CMD --oplogReplay"
+fi
+
+if docker-compose exec -T mongo $IMPORT_CMD; then
     print_status "Data import completed successfully"
 else
     print_error "Data import failed!"
@@ -289,8 +319,10 @@ else
     exit 1
 fi
 
-# Clean up temporary port mapping
-rm -f docker-compose.import.yml
+# Clean up import data from container
+docker-compose exec -T mongo rm -rf /tmp/import_data
+
+print_status "MongoDB data import completed"
 
 # Step 6: Start full Nightscout application
 print_step "6" "Starting complete Nightscout application"
