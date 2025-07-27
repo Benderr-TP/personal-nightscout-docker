@@ -49,10 +49,10 @@ services:
       CUSTOM_TITLE: ${CUSTOM_TITLE:-Nightscout}
 
       ### Security headers for production
-      INSECURE_USE_HTTP: false
-      SECURE_HSTS_HEADER: true
-      SECURE_HSTS_HEADER_INCLUDESUBDOMAINS: true
-      SECURE_HSTS_HEADER_PRELOAD: true
+      INSECURE_USE_HTTP: "false"
+      SECURE_HSTS_HEADER: "true"
+      SECURE_HSTS_HEADER_INCLUDESUBDOMAINS: "true"
+      SECURE_HSTS_HEADER_PRELOAD: "true"
 
       ### Cloudflare Tunnel
       CLOUDFLARE_DOMAIN: ${CLOUDFLARE_DOMAIN}
