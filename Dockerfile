@@ -1,4 +1,4 @@
-FROM nightscout/cgm-remote-monitor:latest
+FROM nightscout/cgm-remote-monitor:15.0.3
 
 # Set maintainer
 LABEL maintainer="benderr"

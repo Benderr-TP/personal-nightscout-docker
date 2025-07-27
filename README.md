@@ -4,15 +4,21 @@ Custom Docker setup for deploying Nightscout on Proxmox.
 
 ## Quick Start
 
-1. **Copy environment file:**
+1. **Run the setup script:**
+   ```bash
+   ./setup.sh
+   ```
+   This will:
+   - Create a `.env` file from the template
+   - Generate secure API_SECRET and MongoDB password
+   - Configure timezone, display units, and custom title
+   - Validate the configuration
+
+2. **Alternative manual setup:**
    ```bash
    cp .env.example .env
+   # Edit .env file with your settings
    ```
-
-2. **Edit `.env` file with your settings:**
-   - Change `API_SECRET` to a long random string
-   - Change `MONGO_INITDB_ROOT_PASSWORD` to a secure password
-   - Update other settings as needed
 
 3. **For local development:**
    ```bash
@@ -26,10 +32,15 @@ Custom Docker setup for deploying Nightscout on Proxmox.
 
 ## Configuration
 
+### Setup Scripts
+
+- `setup.sh`: Interactive setup script that configures your environment
+- `validate.sh`: Validates your configuration and Docker setup
+
 ### Required Environment Variables
 
-- `API_SECRET`: Long random string for API authentication
-- `MONGO_INITDB_ROOT_PASSWORD`: MongoDB root password
+- `API_SECRET`: Long random string for API authentication (minimum 12 characters)
+- `MONGO_INITDB_ROOT_PASSWORD`: MongoDB root password (minimum 8 characters)
 
 ### Important Settings
 
@@ -78,6 +89,11 @@ Custom Docker setup for deploying Nightscout on Proxmox.
 
 ## Management Commands
 
+### Validate configuration
+```bash
+./validate.sh
+```
+
 ### View logs
 ```bash
 docker-compose -f docker-compose.proxmox.yml logs -f
@@ -115,9 +131,56 @@ After deployment, Nightscout will be available at:
 
 For production use, configure a reverse proxy with SSL/TLS.
 
+## Troubleshooting
+
+### Common Issues
+
+**Container won't start:**
+```bash
+# Check logs
+docker-compose logs nightscout
+docker-compose logs mongo
+
+# Validate configuration
+./validate.sh
+```
+
+**Port 1337 already in use:**
+```bash
+# Find what's using the port
+lsof -i :1337
+
+# Stop conflicting service or change port in .env
+```
+
+**MongoDB connection issues:**
+```bash
+# Check if MongoDB container is running
+docker ps | grep mongo
+
+# Restart MongoDB container
+docker-compose restart mongo
+```
+
+**Permission issues:**
+```bash
+# Make scripts executable
+chmod +x setup.sh validate.sh
+
+# Check file permissions
+ls -la
+```
+
+### Getting Help
+
+1. Run `./validate.sh` to check your configuration
+2. Check the logs: `docker-compose logs -f`
+3. Review the [Nightscout documentation](https://nightscout.github.io/)
+4. Check [DEPLOY.md](DEPLOY.md) for Proxmox-specific issues
+
 ## Version Information
 
-- **Nightscout Version:** 15.0.3+ (using latest tag)
+- **Nightscout Version:** 15.0.3 (pinned for stability)
 - **MongoDB Version:** 4.4 (officially supported)
 - **Node.js:** Latest LTS (included in official image)
 - **Last Updated:** January 2025
