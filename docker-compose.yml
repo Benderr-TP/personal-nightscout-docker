@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   nightscout:
-    build: .
+    image: nightscout/cgm-remote-monitor:15.0.3
     container_name: nightscout
     restart: unless-stopped
     depends_on:
@@ -15,40 +15,51 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       ### Variables for the container
       NODE_ENV: production
-      TZ: America/New_York  # Change to your timezone
+      TZ: ${TZ:-America/New_York}
 
       ### MongoDB connection
-      MONGO_CONNECTION: mongodb://root:${MONGO_INITDB_ROOT_PASSWORD:-change_this_password}@mongo:27017/nightscout?authSource=admin
+      MONGO_CONNECTION: ${MONGO_CONNECTION}
       MONGO_COLLECTION: entries
 
-      ### Required variables
-      API_SECRET: ${API_SECRET:-change_this_to_a_long_random_string}  # CHANGE THIS!
+      ### Security
+      API_SECRET: ${API_SECRET}
       
       ### Features
-      ENABLE: careportal basal dbsize rawbg iob maker cob bwp cage iage sage boluscalc pushover treatmentnotify loop pump profile food openaps bage alexa override cors
+      ENABLE: ${ENABLE:-careportal basal dbsize rawbg iob maker cob bwp cage iage sage boluscalc pushover treatmentnotify loop pump profile food openaps bage alexa override cors}
 
       ### Core settings
-      DISPLAY_UNITS: mg/dl  # or mmol/L
+      DISPLAY_UNITS: ${DISPLAY_UNITS:-mg/dl}
       DEFAULT_FEATURES: careportal boluscalc food rawbg iob
-      ALARM_HIGH: 260
-      ALARM_LOW: 55
-      ALARM_URGENT_HIGH: 370
-      ALARM_URGENT_LOW: 40
+      ALARM_HIGH: ${ALARM_HIGH:-260}
+      ALARM_LOW: ${ALARM_LOW:-55}
+      ALARM_URGENT_HIGH: ${ALARM_URGENT_HIGH:-370}
+      ALARM_URGENT_LOW: ${ALARM_URGENT_LOW:-40}
 
-      ### Theme
-      THEME: colors
-
-      ### Language
-      LANGUAGE: en
+      ### Theme and language
+      THEME: ${THEME:-colors}
+      LANGUAGE: ${LANGUAGE:-en}
 
       ### Authentication
-      AUTH_DEFAULT_ROLES: readable
+      AUTH_DEFAULT_ROLES: ${AUTH_DEFAULT_ROLES:-readable}
       
-      ### Optional: Custom title
-      CUSTOM_TITLE: My Nightscout
+      ### Custom title
+      CUSTOM_TITLE: ${CUSTOM_TITLE:-Nightscout}
+
+      ### Security headers for production
+      INSECURE_USE_HTTP: false
+      SECURE_HSTS_HEADER: true
+      SECURE_HSTS_HEADER_INCLUDESUBDOMAINS: true
+      SECURE_HSTS_HEADER_PRELOAD: true
 
       ### Cloudflare Tunnel
       CLOUDFLARE_DOMAIN: ${CLOUDFLARE_DOMAIN}
@@ -62,15 +73,22 @@ services:
     container_name: nightscout_mongo
     restart: unless-stopped
     volumes:
-      - mongo_data:/data/db
+      - nightscout_mongo_data:/data/db
+      - /etc/localtime:/etc/localtime:ro
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-change_this_password}  # CHANGE THIS!
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     networks:
       - nightscout_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
-  mongo_data:
+  nightscout_mongo_data:
+    driver: local
 
 networks:
   nightscout_network:

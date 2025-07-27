@@ -107,15 +107,36 @@ fi
 # Check if containers are running
 print_info "Checking container status..."
 
-if docker ps --format "table {{.Names}}" | grep -q "nightscout"; then
+NIGHTSCOUT_RUNNING=$(docker ps --format "{{.Names}}" | grep "^nightscout$" || echo "")
+if [ -n "$NIGHTSCOUT_RUNNING" ]; then
     print_status "Nightscout container is running"
+    
+    # Check health status
+    HEALTH_STATUS=$(docker inspect nightscout --format='{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
+    if [ "$HEALTH_STATUS" = "healthy" ]; then
+        print_status "Nightscout container is healthy"
+    elif [ "$HEALTH_STATUS" = "unhealthy" ]; then
+        print_error "Nightscout container is unhealthy"
+        print_info "Check logs: docker logs nightscout"
+    else
+        print_warning "Nightscout health status: $HEALTH_STATUS"
+    fi
 else
     print_warning "Nightscout container is not running"
     echo "Start containers with: docker-compose up -d"
 fi
 
-if docker ps --format "table {{.Names}}" | grep -q "nightscout_mongo"; then
+MONGO_RUNNING=$(docker ps --format "{{.Names}}" | grep "^nightscout_mongo$" || echo "")
+if [ -n "$MONGO_RUNNING" ]; then
     print_status "MongoDB container is running"
+    
+    # Test MongoDB connectivity
+    if docker exec nightscout_mongo mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
+        print_status "MongoDB is responding to connections"
+    else
+        print_warning "MongoDB is not responding properly"
+        print_info "Check logs: docker logs nightscout_mongo"
+    fi
 else
     print_warning "MongoDB container is not running"
     echo "Start containers with: docker-compose up -d"

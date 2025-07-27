@@ -2,11 +2,73 @@
 
 # Cloudflare Tunnel Setup Script for Nightscout
 # This script sets up Cloudflare Tunnel to securely expose Nightscout
+#
+# Usage:
+#   ./setup-cloudflare.sh                                           # Interactive mode
+#   ./setup-cloudflare.sh --domain host.domain.org                 # With domain
+#   ./setup-cloudflare.sh --domain host.domain.org --tunnel-name my-tunnel  # Full specification
+#   ./setup-cloudflare.sh --domain host.domain.org --non-interactive       # Automated mode
 
 set -e
 
+# Parse command line arguments
+DOMAIN=""
+TUNNEL_NAME=""
+NON_INTERACTIVE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --domain)
+            DOMAIN="$2"
+            shift 2
+            ;;
+        --tunnel-name)
+            TUNNEL_NAME="$2"
+            shift 2
+            ;;
+        --non-interactive)
+            NON_INTERACTIVE=true
+            shift
+            ;;
+        --help|-h)
+            echo "Cloudflare Tunnel Setup Script"
+            echo ""
+            echo "Usage:"
+            echo "  ./setup-cloudflare.sh                                           # Interactive mode"
+            echo "  ./setup-cloudflare.sh --domain host.domain.org                 # With domain"
+            echo "  ./setup-cloudflare.sh --domain host.domain.org --tunnel-name my-tunnel  # Full specification"
+            echo "  ./setup-cloudflare.sh --domain host.domain.org --non-interactive       # Automated mode"
+            echo ""
+            echo "Options:"
+            echo "  --domain DOMAIN        Domain for tunnel routing"
+            echo "  --tunnel-name NAME     Custom tunnel name (default: derived from domain)"
+            echo "  --non-interactive      Skip interactive prompts, use defaults"
+            echo "  --help, -h             Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Generate tunnel name from domain if not provided
+if [ -n "$DOMAIN" ] && [ -z "$TUNNEL_NAME" ]; then
+    HOSTNAME=$(echo "$DOMAIN" | cut -d'.' -f1)
+    TUNNEL_NAME="${HOSTNAME}-tunnel"
+fi
+
 echo "☁️  Cloudflare Tunnel Setup for Nightscout"
 echo "=========================================="
+
+if [ "$NON_INTERACTIVE" = true ]; then
+    echo "🤖 Non-interactive mode"
+    [ -n "$DOMAIN" ] && echo "Domain: $DOMAIN"
+    [ -n "$TUNNEL_NAME" ] && echo "Tunnel name: $TUNNEL_NAME"
+    echo ""
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -49,13 +111,17 @@ print_status "Docker is running"
 # Check if cloudflared is already installed
 if command -v cloudflared >/dev/null 2>&1; then
     print_warning "cloudflared is already installed"
-    read -p "Do you want to reinstall? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        print_info "Removing existing cloudflared installation..."
-        sudo rm -f /usr/local/bin/cloudflared
-    else
+    if [ "$NON_INTERACTIVE" = true ]; then
         print_info "Using existing cloudflared installation"
+    else
+        read -p "Do you want to reinstall? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Removing existing cloudflared installation..."
+            sudo rm -f /usr/local/bin/cloudflared
+        else
+            print_info "Using existing cloudflared installation"
+        fi
     fi
 fi
 
@@ -106,103 +172,128 @@ print_info "Setting up Cloudflare Tunnel..."
 # Check if user is already authenticated
 if [ -f "$TUNNEL_DIR/cert.pem" ]; then
     print_warning "You appear to be already authenticated with Cloudflare"
-    read -p "Do you want to re-authenticate? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        print_info "Re-authenticating with Cloudflare..."
-        cloudflared tunnel login
+    if [ "$NON_INTERACTIVE" = true ]; then
+        print_info "Using existing authentication"
+    else
+        read -p "Do you want to re-authenticate? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Re-authenticating with Cloudflare..."
+            cloudflared tunnel login
+        fi
     fi
 else
     print_info "Setting up Cloudflare authentication..."
-    print_info "Choose authentication method:"
-    echo "1. Browser authentication (opens browser) - Recommended"
-    echo "2. API token authentication (headless servers)"
-    echo "3. Use existing certificate from another machine"
-    read -p "Enter choice (1, 2, or 3): " -n 1 -r
-    echo
-    
-    if [[ $REPLY =~ ^[3]$ ]]; then
-        print_info "Using existing certificate from another machine..."
-        print_info "Please ensure you have copied the certificate file to this system."
-        print_info "Required file: ~/.cloudflared/cert.pem"
-        
-        if [ ! -f "$TUNNEL_DIR/cert.pem" ]; then
-            print_error "Certificate file not found!"
-            print_info "Please copy the certificate file from your laptop:"
-            echo "  scp ~/.cloudflared/cert.pem user@linux-system:~/.cloudflared/"
-            exit 1
-        fi
-        
-        print_status "Certificate files found and ready to use"
-        
-    elif [[ $REPLY =~ ^[2]$ ]]; then
-        print_warning "API token authentication may not work for tunnel creation."
-        print_info "It's recommended to use browser authentication for tunnel setup."
-        read -p "Continue with API token anyway? (y/N): " -n 1 -r
+    if [ "$NON_INTERACTIVE" = true ]; then
+        print_info "Using browser authentication (non-interactive mode requires existing auth)"
+        cloudflared tunnel login
+    else
+        print_info "Choose authentication method:"
+        echo "1. Browser authentication (opens browser) - Recommended"
+        echo "2. Use existing certificate from another machine"
+        read -p "Enter choice (1 or 2): " -n 1 -r
         echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_info "Switching to browser authentication..."
-            cloudflared tunnel login
-        else
-            print_info "Using API token authentication..."
-            read -p "Enter your Cloudflare API token: " API_TOKEN
-            if [ -z "$API_TOKEN" ]; then
-                print_error "API token is required"
+        
+        if [[ $REPLY =~ ^[2]$ ]]; then
+            print_info "Using existing certificate from another machine..."
+            print_info "Please ensure you have copied the certificate file to this system."
+            print_info "Required file: ~/.cloudflared/cert.pem"
+            
+            if [ ! -f "$TUNNEL_DIR/cert.pem" ]; then
+                print_error "Certificate file not found!"
+                print_info "Please copy the certificate file from your laptop:"
+                echo "  scp ~/.cloudflared/cert.pem user@linux-system:~/.cloudflared/"
                 exit 1
             fi
             
-            # Create config with API token
-            mkdir -p "$TUNNEL_DIR"
-            cat > "$TUNNEL_DIR/config.yml" << EOF
-# Cloudflare API Token Configuration
-# This file will be used for API token authentication
-api_token: $API_TOKEN
-EOF
-            
-            print_status "API token configured"
-            print_info "Note: API token authentication will be used for tunnel operations"
+            print_status "Certificate files found and ready to use"
+        else
+            print_info "Using browser authentication..."
+            print_info "This will open your browser to authenticate with Cloudflare"
+            cloudflared tunnel login
         fi
-    else
-        print_info "Using browser authentication..."
-        print_info "This will open your browser to authenticate with Cloudflare"
-        cloudflared tunnel login
     fi
 fi
 
-# Get tunnel name from user
+# Get tunnel name from user or use provided value
 print_info "Creating tunnel..."
-read -p "Enter a name for your tunnel (e.g., ns-tunnel-ben): " TUNNEL_NAME
 if [ -z "$TUNNEL_NAME" ]; then
-    TUNNEL_NAME="ns-tunnel-ben"
+    if [ "$NON_INTERACTIVE" = true ]; then
+        TUNNEL_NAME="ns-tunnel-ben"
+        print_info "Using default tunnel name: $TUNNEL_NAME"
+    else
+        read -p "Enter a name for your tunnel (e.g., ns-tunnel-ben): " TUNNEL_NAME
+        if [ -z "$TUNNEL_NAME" ]; then
+            TUNNEL_NAME="ns-tunnel-ben"
+        fi
+    fi
+else
+    print_info "Using tunnel name: $TUNNEL_NAME"
 fi
 
 # Create tunnel
 print_info "Creating tunnel: $TUNNEL_NAME"
-# Note: Tunnel creation requires certificate authentication, even with API tokens
-# The API token will be used for subsequent operations
 cloudflared tunnel create "$TUNNEL_NAME"
 
-# Get tunnel ID
-TUNNEL_ID=$(cloudflared tunnel list --name "$TUNNEL_NAME" --format json | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+# Get tunnel ID with error handling
+print_info "Getting tunnel ID..."
+TUNNEL_LIST_OUTPUT=$(cloudflared tunnel list -o json 2>&1)
+if [ $? -ne 0 ]; then
+    print_error "Failed to list tunnels: $TUNNEL_LIST_OUTPUT"
+    exit 1
+fi
+
+# More robust JSON parsing with validation
+TUNNEL_ID=$(echo "$TUNNEL_LIST_OUTPUT" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for tunnel in data:
+        if tunnel.get('name') == '$TUNNEL_NAME':
+            print(tunnel.get('id', ''))
+            break
+except (json.JSONDecodeError, KeyError, TypeError) as e:
+    print('', file=sys.stderr)
+    sys.exit(1)
+" 2>/dev/null)
+
+if [ -z "$TUNNEL_ID" ]; then
+    print_error "Failed to extract tunnel ID for tunnel: $TUNNEL_NAME"
+    print_info "Available tunnels:"
+    echo "$TUNNEL_LIST_OUTPUT" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for tunnel in data:
+        print(f\"  - {tunnel.get('name', 'N/A')} (ID: {tunnel.get('id', 'N/A')})\")
+except:
+    print('Unable to parse tunnel list')
+" 2>/dev/null || echo "$TUNNEL_LIST_OUTPUT"
+    exit 1
+fi
+
 print_status "Tunnel created with ID: $TUNNEL_ID"
 
-# Get domain from user
+# Get domain from user or use provided value
 print_info "Setting up custom domain..."
-read -p "Enter your domain (e.g., nightscout.yourdomain.com): " DOMAIN
 if [ -z "$DOMAIN" ]; then
-    print_error "Domain is required"
-    exit 1
+    if [ "$NON_INTERACTIVE" = true ]; then
+        print_error "Domain is required in non-interactive mode. Use --domain flag."
+        exit 1
+    else
+        read -p "Enter your domain (e.g., nightscout.yourdomain.com): " DOMAIN
+        if [ -z "$DOMAIN" ]; then
+            print_error "Domain is required"
+            exit 1
+        fi
+    fi
+else
+    print_info "Using domain: $DOMAIN"
 fi
 
 # Create tunnel configuration file
 print_info "Creating tunnel configuration..."
-if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
-    # API token configuration
-    cat > "$TUNNEL_DIR/config.yml" << EOF
-# Cloudflare API Token Configuration
-api_token: $(grep "api_token:" "$TUNNEL_DIR/config.yml" | sed 's/api_token: //')
-
-# Tunnel Configuration
+cat > "$TUNNEL_DIR/config.yml" << EOF
 tunnel: $TUNNEL_ID
 credentials-file: $TUNNEL_DIR/$TUNNEL_ID.json
 
@@ -211,24 +302,23 @@ ingress:
     service: http://localhost:8080
   - service: http_status:404
 EOF
-else
-    # Certificate configuration
-    cat > "$TUNNEL_DIR/config.yml" << EOF
-tunnel: $TUNNEL_ID
-credentials-file: $TUNNEL_DIR/$TUNNEL_ID.json
-
-ingress:
-  - hostname: $DOMAIN
-    service: http://localhost:8080
-  - service: http_status:404
-EOF
-fi
 
 print_status "Tunnel configuration created"
 
-# Route traffic to the tunnel
+# Route traffic to the tunnel with error handling
 print_info "Routing traffic to tunnel..."
-cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN"
+DNS_ROUTE_OUTPUT=$(cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN" 2>&1)
+if [ $? -ne 0 ]; then
+    print_error "Failed to route DNS to tunnel: $DNS_ROUTE_OUTPUT"
+    print_info "This could be due to:"
+    print_info "1. Domain not managed by Cloudflare"
+    print_info "2. Insufficient permissions on Cloudflare account" 
+    print_info "3. Authentication certificate expired or invalid"
+    exit 1
+fi
+
+print_status "DNS routing configured successfully"
+print_info "DNS Output: $DNS_ROUTE_OUTPUT"
 
 # Create systemd service for cloudflared
 print_info "Creating systemd service for cloudflared..."
@@ -243,15 +333,6 @@ Type=simple
 User=$USER
 EOF
 
-# Add environment variables for API token if using API token authentication
-if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
-    API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | sed 's/api_token: //')
-    sudo tee -a /etc/systemd/system/cloudflared.service > /dev/null << EOF
-Environment="CLOUDFLARE_API_TOKEN=$API_TOKEN"
-Environment="TUNNEL_ORIGIN_CERT=$TUNNEL_DIR/cert.pem"
-EOF
-fi
-
 sudo tee -a /etc/systemd/system/cloudflared.service > /dev/null << EOF
 ExecStart=/usr/local/bin/cloudflared tunnel --config $TUNNEL_DIR/config.yml run
 Restart=always
@@ -261,20 +342,45 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# Enable and start the service
+# Enable and start the service with detailed error handling
 print_info "Enabling and starting cloudflared service..."
 sudo systemctl daemon-reload
-sudo systemctl enable cloudflared
-sudo systemctl start cloudflared
 
-# Check service status
-if sudo systemctl is-active --quiet cloudflared; then
-    print_status "cloudflared service is running"
-else
-    print_error "cloudflared service failed to start"
-    print_info "Check logs with: sudo journalctl -u cloudflared -f"
+# Enable service
+if ! sudo systemctl enable cloudflared 2>&1; then
+    print_error "Failed to enable cloudflared service"
     exit 1
 fi
+
+# Start service with timeout
+print_info "Starting cloudflared service..."
+if ! sudo systemctl start cloudflared; then
+    print_error "Failed to start cloudflared service"
+    print_info "Service status:"
+    sudo systemctl status cloudflared --no-pager -l
+    print_info "Recent logs:"
+    sudo journalctl -u cloudflared --no-pager -n 20
+    exit 1
+fi
+
+# Wait and check service status with retries
+print_info "Waiting for service to stabilize..."
+for i in {1..10}; do
+    sleep 2
+    if sudo systemctl is-active --quiet cloudflared; then
+        print_status "cloudflared service is running"
+        break
+    elif [ $i -eq 10 ]; then
+        print_error "cloudflared service failed to start properly"
+        print_info "Service status:"
+        sudo systemctl status cloudflared --no-pager -l
+        print_info "Recent logs:"
+        sudo journalctl -u cloudflared --no-pager -n 20
+        exit 1
+    else
+        print_info "Waiting for service... (attempt $i/10)"
+    fi
+done
 
 # Create Docker Compose override for cloudflared
 print_info "Creating Docker Compose override for cloudflared..."
@@ -322,10 +428,10 @@ echo ""
 echo "Tunnel connections:"
 cloudflared tunnel list
 
-# Check DNS records
+# Check tunnel information
 echo ""
-echo "DNS records:"
-cloudflared tunnel route ip show
+echo "Tunnel information:"
+cloudflared tunnel info "$TUNNEL_NAME" 2>/dev/null || echo "Tunnel info not available (requires newer cloudflared version)"
 EOF
 
 chmod +x tunnel-status.sh
@@ -351,15 +457,55 @@ chmod +x tunnel-restart.sh
 
 print_status "Management scripts created"
 
-# Test tunnel connection
-print_info "Testing tunnel connection..."
-sleep 5  # Give the tunnel a moment to start
-if curl -s -f "https://$DOMAIN" > /dev/null 2>&1; then
-    print_status "Tunnel connection test successful!"
+# Test tunnel connection with comprehensive diagnostics
+print_info "Testing tunnel connectivity..."
+
+# First check if Nightscout is running locally
+print_info "Checking if Nightscout is running on port 8080..."
+if ! curl -s -f "http://localhost:8080/api/v1/status" > /dev/null 2>&1; then
+    print_warning "Nightscout is not running locally on port 8080"
+    print_info "Start Nightscout first with: docker-compose up -d"
+    print_info "Skipping tunnel connectivity test for now"
 else
-    print_warning "Tunnel connection test failed. This is normal if DNS hasn't propagated yet."
-    print_info "DNS propagation can take a few minutes. You can test again later with:"
-    echo "  curl -I https://$DOMAIN"
+    print_status "Nightscout is running locally"
+fi
+
+# Test tunnel with retries and better diagnostics
+print_info "Testing tunnel connection (this may take a few minutes for DNS propagation)..."
+TUNNEL_TEST_SUCCESS=false
+
+for i in {1..3}; do
+    print_info "Connection test attempt $i/3..."
+    
+    # Test with verbose output for debugging
+    CURL_OUTPUT=$(curl -s -w "%{http_code}|%{time_total}|%{url_effective}" "https://$DOMAIN/api/v1/status" 2>&1)
+    HTTP_CODE=$(echo "$CURL_OUTPUT" | cut -d'|' -f1)
+    TIME_TOTAL=$(echo "$CURL_OUTPUT" | cut -d'|' -f2)
+    FINAL_URL=$(echo "$CURL_OUTPUT" | cut -d'|' -f3)
+    
+    if [ "$HTTP_CODE" = "200" ]; then
+        print_status "Tunnel connection test successful! (${TIME_TOTAL}s)"
+        print_info "Final URL: $FINAL_URL"
+        TUNNEL_TEST_SUCCESS=true
+        break
+    else
+        print_warning "Test $i failed - HTTP Code: $HTTP_CODE"
+        if [ $i -lt 3 ]; then
+            print_info "Waiting 30 seconds before retry..."
+            sleep 30
+        fi
+    fi
+done
+
+if [ "$TUNNEL_TEST_SUCCESS" = false ]; then
+    print_warning "Tunnel connection test failed after 3 attempts"
+    print_info "This is often normal due to DNS propagation delays"
+    print_info "Manual tests you can run:"
+    echo "  1. Check tunnel status: sudo systemctl status cloudflared"
+    echo "  2. Check tunnel logs: sudo journalctl -u cloudflared -f"
+    echo "  3. Test connectivity: curl -I https://$DOMAIN"
+    echo "  4. Check DNS: nslookup $DOMAIN"
+    echo "  5. Verify Nightscout: curl http://localhost:8080/api/v1/status"
 fi
 
 # Update .env file to include tunnel information

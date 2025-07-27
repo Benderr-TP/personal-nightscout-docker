@@ -48,7 +48,15 @@ if [ "$TUNNELS_TO_DELETE" = "all" ]; then
     print_info "Deleting all tunnels except 'ns-tunnel-ben'..."
     
     # Get list of tunnels to delete (all except ns-tunnel-ben)
-    TUNNELS_TO_DELETE=$(cloudflared tunnel list --format json | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | grep -v "ns-tunnel-ben" | tr '\n' ' ')
+    TUNNELS_TO_DELETE=$(cloudflared tunnel list -o json | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    names = [tunnel['name'] for tunnel in data if tunnel.get('name') != 'ns-tunnel-ben']
+    print(' '.join(names))
+except:
+    sys.exit(1)
+" 2>/dev/null)
     
     if [ -z "$TUNNELS_TO_DELETE" ]; then
         print_info "No tunnels to delete (only ns-tunnel-ben exists)"
