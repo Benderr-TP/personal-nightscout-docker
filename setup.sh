@@ -265,35 +265,15 @@ print_status "Updated MongoDB connection string"
 
 # Configure timezone
 print_info "Setting timezone..."
-if [ "$INTERACTIVE" = true ]; then
-    read -p "Enter your timezone (e.g., America/New_York, Europe/London): " TZ
-    if [ ! -z "$TZ" ]; then
-        sed -i.bak "s|TZ=.*|TZ=$TZ|" .env
-        print_status "Set timezone to $TZ"
-    fi
-else
-    # Use default timezone in non-interactive mode
-    print_status "Using default timezone: America/New_York"
-fi
+# Use default timezone (America/Chicago)
+sed -i.bak "s|TZ=.*|TZ=America/Chicago|" .env
+print_status "Set timezone to America/Chicago"
 
 # Configure display units
 print_info "Setting display units..."
-if [ "$INTERACTIVE" = true ]; then
-    read -p "Enter display units (mg/dl or mmol/L): " DISPLAY_UNITS
-    if [ "$DISPLAY_UNITS" = "mmol/L" ] || [ "$DISPLAY_UNITS" = "mmol/l" ]; then
-        sed -i.bak "s|DISPLAY_UNITS=.*|DISPLAY_UNITS=mmol/L|" .env
-        print_status "Set display units to mmol/L"
-    elif [ "$DISPLAY_UNITS" = "mg/dl" ] || [ "$DISPLAY_UNITS" = "mg/dL" ]; then
-        sed -i.bak "s|DISPLAY_UNITS=.*|DISPLAY_UNITS=mg/dl|" .env
-        print_status "Set display units to mg/dl"
-    else
-        print_warning "Unrecognized input. Defaulting to mg/dl."
-        sed -i.bak "s|DISPLAY_UNITS=.*|DISPLAY_UNITS=mg/dl|" .env
-    fi
-else
-    # Use default display units in non-interactive mode
-    print_status "Using default display units: mg/dl"
-fi
+# Use default display units (mg/dl)
+sed -i.bak "s|DISPLAY_UNITS=.*|DISPLAY_UNITS=mg/dl|" .env
+print_status "Set display units to mg/dl"
 
 # Configure custom title
 print_info "Setting custom title..."
