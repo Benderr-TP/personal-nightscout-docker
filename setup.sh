@@ -91,13 +91,45 @@ if [ "$INTERACTIVE" = false ]; then
 fi
 
 # Check for required commands
-if ! command -v openssl >/dev/null 2>&1; then
-    print_error "openssl is required but not installed. Please install openssl and rerun the script."
+REQUIRED_COMMANDS=("openssl" "sed" "curl" "docker" "docker-compose")
+MISSING_COMMANDS=()
+
+for cmd in "${REQUIRED_COMMANDS[@]}"; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        MISSING_COMMANDS+=("$cmd")
+    fi
+done
+
+if [ ${#MISSING_COMMANDS[@]} -ne 0 ]; then
+    print_error "The following required commands are missing:"
+    for cmd in "${MISSING_COMMANDS[@]}"; do
+        echo "  - $cmd"
+    done
+    echo
+    print_info "Install them with:"
+    echo "  sudo apt update && sudo apt install -y openssl sed curl docker.io docker-compose"
     exit 1
 fi
-if ! command -v sed >/dev/null 2>&1; then
-    print_error "sed is required but not installed. Please install sed and rerun the script."
-    exit 1
+
+# Check for helpful diagnostic utilities
+DIAGNOSTIC_COMMANDS=("lsof" "netstat" "ss" "dig" "htop")
+MISSING_DIAGNOSTIC=()
+
+for cmd in "${DIAGNOSTIC_COMMANDS[@]}"; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        MISSING_DIAGNOSTIC+=("$cmd")
+    fi
+done
+
+if [ ${#MISSING_DIAGNOSTIC[@]} -ne 0 ]; then
+    print_warning "Some helpful diagnostic utilities are missing:"
+    for cmd in "${MISSING_DIAGNOSTIC[@]}"; do
+        echo "  - $cmd"
+    done
+    echo
+    print_info "Install them with:"
+    echo "  sudo apt install -y lsof net-tools iproute2 dnsutils htop"
+    echo
 fi
 
 # Check if .env file exists
@@ -319,7 +351,7 @@ print_status "Configuration validation passed!"
 # Automatic tunnel setup if requested
 if [ "$SETUP_TUNNEL" = true ]; then
     echo
-    print_info "🚀 Setting up Cloudflare tunnel automatically..."
+    print_info "🚀 Setting up complete deployment with Docker and Cloudflare tunnel..."
     
     if [ -z "$DOMAIN" ]; then
         print_error "Domain is required for tunnel setup. Use --domain flag."
@@ -332,22 +364,79 @@ if [ "$SETUP_TUNNEL" = true ]; then
         exit 1
     fi
     
-    # Run tunnel setup with domain and tunnel name
-    ./setup-cloudflare.sh --domain "$DOMAIN" --tunnel-name "$TUNNEL_NAME" --non-interactive
+    # Check if docker-compose.yml exists
+    if [ ! -f "./docker-compose.yml" ]; then
+        print_error "docker-compose.yml not found in current directory"
+        exit 1
+    fi
     
-    if [ $? -eq 0 ]; then
-        print_status "Cloudflare tunnel setup completed successfully!"
-        echo
-        echo "🎉 Full automated setup completed!"
-        echo
-        echo "🌐 Your Nightscout will be available at:"
-        echo "   - Local: http://localhost:8080"
-        echo "   - External: https://$DOMAIN"
-        echo
-        echo "🚀 To start Nightscout:"
-        echo "   docker-compose up -d"
+    # Step 1: Start Nightscout with Docker
+    print_info "Step 1: Starting Nightscout with Docker Compose..."
+    if docker-compose up -d; then
+        print_status "Docker Compose started successfully"
     else
-        print_error "Cloudflare tunnel setup failed. Run manually: ./setup-cloudflare.sh"
+        print_error "Failed to start Docker Compose"
+        print_info "Please check for port conflicts or configuration issues"
+        print_info "Try: docker-compose logs"
+        exit 1
+    fi
+    
+    # Step 2: Wait for Nightscout to be fully ready
+    print_info "Step 2: Waiting for Nightscout to be ready and accessible..."
+    NIGHTSCOUT_READY=false
+    
+    for i in {1..24}; do
+        sleep 5
+        print_info "Checking Nightscout health... (attempt $i/24)"
+        
+        # Check if container is running
+        if ! docker-compose ps nightscout | grep -q "Up"; then
+            print_warning "Nightscout container is not running properly"
+            print_info "Container status:"
+            docker-compose ps nightscout
+            continue
+        fi
+        
+        # Check if port 8080 is accessible
+        if curl -s -f "http://localhost:8080/api/v1/status" > /dev/null 2>&1; then
+            print_status "Nightscout is now running and accessible on port 8080!"
+            NIGHTSCOUT_READY=true
+            break
+        elif [ $i -eq 24 ]; then
+            print_error "Nightscout failed to become ready after 2 minutes"
+            print_info "Checking container logs:"
+            docker-compose logs --tail=20 nightscout
+            print_info "Checking container status:"
+            docker-compose ps
+            exit 1
+        else
+            print_info "Nightscout not ready yet, waiting... (${i}/24)"
+        fi
+    done
+    
+    if [ "$NIGHTSCOUT_READY" = true ]; then
+        echo
+        print_status "✅ Nightscout is fully operational!"
+        print_info "🌐 Local access: http://localhost:8080"
+        echo
+        
+        # Step 3: Setup Cloudflare tunnel
+        print_info "Step 3: Setting up Cloudflare tunnel..."
+        ./setup-cloudflare.sh --domain "$DOMAIN" --tunnel-name "$TUNNEL_NAME" --non-interactive
+        
+        if [ $? -eq 0 ]; then
+            print_status "Cloudflare tunnel setup completed successfully!"
+            echo
+            echo "🎉 Full automated setup completed!"
+            echo
+            echo "🌐 Your Nightscout is now available at:"
+            echo "   - Local: http://localhost:8080"
+            echo "   - External: https://$DOMAIN"
+        else
+            print_error "Cloudflare tunnel setup failed"
+            print_info "Nightscout is still running locally at: http://localhost:8080"
+            print_info "You can setup the tunnel manually with: ./setup-cloudflare.sh"
+        fi
     fi
 else
     # Show next steps for manual setup
@@ -365,9 +454,65 @@ else
     else
         echo "Next steps:"
         echo "1. Review your .env file: cat .env"
-        echo "2. For Cloudflare tunnel: ./setup-cloudflare.sh"
-        echo "3. For local development: docker-compose up -d"
-        echo "4. For Proxmox deployment: docker-compose -f docker-compose.proxmox.yml up -d"
+        echo "2. Start Nightscout: docker-compose up -d"
+        echo "3. Verify it's running: curl http://localhost:8080/api/v1/status"
+        echo "4. For Cloudflare tunnel: ./setup-cloudflare.sh"
+        echo "5. For Proxmox deployment: docker-compose -f docker-compose.proxmox.yml up -d"
+        echo
+        
+        # Offer to start Nightscout and setup tunnel interactively
+        if [ -n "$DOMAIN" ] && [ "$INTERACTIVE" = true ]; then
+            echo "Would you like to start Nightscout now and setup the Cloudflare tunnel?"
+            read -p "Start deployment? (Y/n): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                echo
+                print_info "🚀 Starting interactive deployment..."
+                
+                # Step 1: Start Docker
+                print_info "Step 1: Starting Nightscout with Docker Compose..."
+                if docker-compose up -d; then
+                    print_status "Docker Compose started successfully"
+                else
+                    print_error "Failed to start Docker Compose"
+                    print_info "Please check for port conflicts: docker-compose logs"
+                    exit 1
+                fi
+                
+                # Step 2: Wait and verify
+                print_info "Step 2: Waiting for Nightscout to be ready..."
+                NIGHTSCOUT_READY=false
+                
+                for i in {1..24}; do
+                    sleep 5
+                    print_info "Checking Nightscout health... (attempt $i/24)"
+                    
+                    if curl -s -f "http://localhost:8080/api/v1/status" > /dev/null 2>&1; then
+                        print_status "✅ Nightscout is ready and accessible!"
+                        NIGHTSCOUT_READY=true
+                        break
+                    elif [ $i -eq 24 ]; then
+                        print_error "Nightscout failed to become ready after 2 minutes"
+                        print_info "Check logs: docker-compose logs nightscout"
+                        exit 1
+                    fi
+                done
+                
+                if [ "$NIGHTSCOUT_READY" = true ]; then
+                    echo
+                    print_status "🌐 Nightscout is running at: http://localhost:8080"
+                    echo
+                    read -p "Proceed with Cloudflare tunnel setup? (Y/n): " -n 1 -r
+                    echo
+                    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                        print_info "Step 3: Setting up Cloudflare tunnel..."
+                        ./setup-cloudflare.sh --domain "$DOMAIN" --tunnel-name "$TUNNEL_NAME"
+                    else
+                        print_info "Cloudflare setup skipped. Run manually: ./setup-cloudflare.sh"
+                    fi
+                fi
+            fi
+        fi
     fi
     echo
     echo "⚠️  Security notes:"

@@ -464,10 +464,57 @@ print_info "Testing tunnel connectivity..."
 print_info "Checking if Nightscout is running on port 8080..."
 if ! curl -s -f "http://localhost:8080/api/v1/status" > /dev/null 2>&1; then
     print_warning "Nightscout is not running locally on port 8080"
-    print_info "Start Nightscout first with: docker-compose up -d"
-    print_info "Skipping tunnel connectivity test for now"
+    print_info "Starting Nightscout with Docker Compose..."
+    
+    # Check if docker-compose.yml exists
+    if [ ! -f "docker-compose.yml" ]; then
+        print_error "docker-compose.yml not found. Please run ./setup.sh first."
+        exit 1
+    fi
+    
+    # Start Nightscout
+    if docker-compose up -d; then
+        print_status "Started Nightscout with Docker Compose"
+        
+        # Wait for Nightscout to be ready
+        print_info "Waiting for Nightscout to be ready (up to 60 seconds)..."
+        for i in {1..12}; do
+            sleep 5
+            if curl -s -f "http://localhost:8080/api/v1/status" > /dev/null 2>&1; then
+                print_status "Nightscout is now running and ready!"
+                break
+            elif [ $i -eq 12 ]; then
+                print_warning "Nightscout may not be fully ready yet, but continuing tunnel test"
+                print_info "You can check Nightscout status with: docker-compose logs nightscout"
+            else
+                print_info "Waiting for Nightscout... (attempt $i/12)"
+            fi
+        done
+    else
+        print_error "Failed to start Nightscout with Docker Compose"
+        print_info "Checking for port conflicts..."
+        
+        # Check what's using port 8080
+        if command -v lsof >/dev/null 2>&1; then
+            LSOF_OUTPUT=$(lsof -i :8080 2>/dev/null || true)
+            if [ -n "$LSOF_OUTPUT" ]; then
+                print_warning "Port 8080 is already in use:"
+                echo "$LSOF_OUTPUT"
+            fi
+        elif command -v netstat >/dev/null 2>&1; then
+            NETSTAT_OUTPUT=$(netstat -tlnp 2>/dev/null | grep ":8080 " || true)
+            if [ -n "$NETSTAT_OUTPUT" ]; then
+                print_warning "Port 8080 is already in use:"
+                echo "$NETSTAT_OUTPUT"
+            fi
+        fi
+        
+        print_info "Run './diagnose.sh' for full system diagnostics"
+        print_info "Or check logs with: docker-compose logs"
+        print_info "Skipping tunnel connectivity test"
+    fi
 else
-    print_status "Nightscout is running locally"
+    print_status "Nightscout is already running locally"
 fi
 
 # Test tunnel with retries and better diagnostics
@@ -560,8 +607,19 @@ echo "📚 For more information, see:"
 echo "- https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/"
 echo "- https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/tunnel-guide/"
 echo
-echo "🚀 Ready to start Nightscout!"
-echo "Run: docker-compose up -d"
-echo
-echo "🌐 Your Nightscout will be available at:"
-echo "   https://$DOMAIN" 
+if curl -s -f "http://localhost:8080/api/v1/status" > /dev/null 2>&1; then
+    echo "🚀 Nightscout is running and tunnel is configured!"
+    echo
+    echo "🌐 Your Nightscout is available at:"
+    echo "   - Local: http://localhost:8080"
+    echo "   - External: https://$DOMAIN"
+else
+    echo "🚀 Tunnel is configured! Nightscout should start automatically."
+    echo
+    echo "🌐 Your Nightscout will be available at:"
+    echo "   - Local: http://localhost:8080"
+    echo "   - External: https://$DOMAIN"
+    echo
+    echo "If Nightscout isn't running, start it with:"
+    echo "   docker-compose up -d"
+fi 
