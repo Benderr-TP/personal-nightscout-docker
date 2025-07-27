@@ -50,6 +50,10 @@ services:
       ### Optional: Custom title
       CUSTOM_TITLE: My Nightscout
 
+      ### Cloudflare Tunnel
+      CLOUDFLARE_DOMAIN: ${CLOUDFLARE_DOMAIN}
+      CLOUDFLARE_TUNNEL_ID: ${CLOUDFLARE_TUNNEL_ID}
+
     networks:
       - nightscout_network
 

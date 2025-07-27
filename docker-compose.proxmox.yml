@@ -54,6 +54,10 @@ services:
       SECURE_HSTS_HEADER_INCLUDESUBDOMAINS: true
       SECURE_HSTS_HEADER_PRELOAD: true
 
+      ### Cloudflare Tunnel
+      CLOUDFLARE_DOMAIN: ${CLOUDFLARE_DOMAIN}
+      CLOUDFLARE_TUNNEL_ID: ${CLOUDFLARE_TUNNEL_ID}
+
     volumes:
       - /etc/localtime:/etc/localtime:ro
     networks:
