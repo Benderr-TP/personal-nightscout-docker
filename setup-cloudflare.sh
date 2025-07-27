@@ -117,10 +117,25 @@ else
     print_info "Choose authentication method:"
     echo "1. Browser authentication (opens browser) - Recommended"
     echo "2. API token authentication (headless servers)"
-    read -p "Enter choice (1 or 2): " -n 1 -r
+    echo "3. Use existing certificate from another machine"
+    read -p "Enter choice (1, 2, or 3): " -n 1 -r
     echo
     
-    if [[ $REPLY =~ ^[2]$ ]]; then
+    if [[ $REPLY =~ ^[3]$ ]]; then
+        print_info "Using existing certificate from another machine..."
+        print_info "Please ensure you have copied the certificate file to this system."
+        print_info "Required file: ~/.cloudflared/cert.pem"
+        
+        if [ ! -f "$TUNNEL_DIR/cert.pem" ]; then
+            print_error "Certificate file not found!"
+            print_info "Please copy the certificate file from your laptop:"
+            echo "  scp ~/.cloudflared/cert.pem user@linux-system:~/.cloudflared/"
+            exit 1
+        fi
+        
+        print_status "Certificate files found and ready to use"
+        
+    elif [[ $REPLY =~ ^[2]$ ]]; then
         print_warning "API token authentication may not work for tunnel creation."
         print_info "It's recommended to use browser authentication for tunnel setup."
         read -p "Continue with API token anyway? (y/N): " -n 1 -r
@@ -163,16 +178,9 @@ fi
 
 # Create tunnel
 print_info "Creating tunnel: $TUNNEL_NAME"
-if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
-    # Use API token authentication
-    API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | sed 's/api_token: //')
-    # For API token auth, create a dummy cert file and use it
-    echo "dummy" > "$TUNNEL_DIR/dummy-cert.pem"
-    CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel create "$TUNNEL_NAME" --origincert "$TUNNEL_DIR/dummy-cert.pem"
-else
-    # Use certificate authentication
-    cloudflared tunnel create "$TUNNEL_NAME"
-fi
+# Note: Tunnel creation requires certificate authentication, even with API tokens
+# The API token will be used for subsequent operations
+cloudflared tunnel create "$TUNNEL_NAME"
 
 # Get tunnel ID
 TUNNEL_ID=$(cloudflared tunnel list --name "$TUNNEL_NAME" --format json | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
@@ -220,14 +228,7 @@ print_status "Tunnel configuration created"
 
 # Route traffic to the tunnel
 print_info "Routing traffic to tunnel..."
-if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
-    # Use API token authentication
-    API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | sed 's/api_token: //')
-    CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN" --origincert "$TUNNEL_DIR/dummy-cert.pem"
-else
-    # Use certificate authentication
-    cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN"
-fi
+cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN"
 
 # Create systemd service for cloudflared
 print_info "Creating systemd service for cloudflared..."
@@ -247,7 +248,7 @@ if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.ym
     API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | sed 's/api_token: //')
     sudo tee -a /etc/systemd/system/cloudflared.service > /dev/null << EOF
 Environment="CLOUDFLARE_API_TOKEN=$API_TOKEN"
-Environment="TUNNEL_ORIGIN_CERT=$TUNNEL_DIR/dummy-cert.pem"
+Environment="TUNNEL_ORIGIN_CERT=$TUNNEL_DIR/cert.pem"
 EOF
 fi
 
