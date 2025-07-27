@@ -235,7 +235,7 @@ for i in {1..30}; do
     sleep 2
     print_info "Checking MongoDB... (attempt $i/30)"
     
-    if docker-compose exec -T mongo mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
+    if docker-compose exec -T mongo mongo --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
         print_status "MongoDB is ready"
         MONGO_READY=true
         break
@@ -274,7 +274,7 @@ for i in {1..30}; do
     sleep 2
     print_info "Checking MongoDB... (attempt $i/30)"
     
-    if docker-compose exec -T mongo mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
+    if docker-compose exec -T mongo mongo --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
         print_status "MongoDB is ready"
         MONGO_READY=true
         break
