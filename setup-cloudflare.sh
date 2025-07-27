@@ -115,29 +115,38 @@ if [ -f "$TUNNEL_DIR/cert.pem" ]; then
 else
     print_info "Setting up Cloudflare authentication..."
     print_info "Choose authentication method:"
-    echo "1. Browser authentication (opens browser)"
+    echo "1. Browser authentication (opens browser) - Recommended"
     echo "2. API token authentication (headless servers)"
     read -p "Enter choice (1 or 2): " -n 1 -r
     echo
     
     if [[ $REPLY =~ ^[2]$ ]]; then
-        print_info "Using API token authentication..."
-        read -p "Enter your Cloudflare API token: " API_TOKEN
-        if [ -z "$API_TOKEN" ]; then
-            print_error "API token is required"
-            exit 1
-        fi
-        
-        # Create config with API token
-        mkdir -p "$TUNNEL_DIR"
-        cat > "$TUNNEL_DIR/config.yml" << EOF
+        print_warning "API token authentication may not work for tunnel creation."
+        print_info "It's recommended to use browser authentication for tunnel setup."
+        read -p "Continue with API token anyway? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Switching to browser authentication..."
+            cloudflared tunnel login
+        else
+            print_info "Using API token authentication..."
+            read -p "Enter your Cloudflare API token: " API_TOKEN
+            if [ -z "$API_TOKEN" ]; then
+                print_error "API token is required"
+                exit 1
+            fi
+            
+            # Create config with API token
+            mkdir -p "$TUNNEL_DIR"
+            cat > "$TUNNEL_DIR/config.yml" << EOF
 # Cloudflare API Token Configuration
 # This file will be used for API token authentication
 api_token: $API_TOKEN
 EOF
-        
-        print_status "API token configured"
-        print_info "Note: API token authentication will be used for tunnel operations"
+            
+            print_status "API token configured"
+            print_info "Note: API token authentication will be used for tunnel operations"
+        fi
     else
         print_info "Using browser authentication..."
         print_info "This will open your browser to authenticate with Cloudflare"
@@ -157,8 +166,8 @@ print_info "Creating tunnel: $TUNNEL_NAME"
 if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
     # Use API token authentication
     API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
-    # For API token auth, we need to set the origin cert path to the config file
-    TUNNEL_ORIGIN_CERT="$TUNNEL_DIR/config.yml" CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel create "$TUNNEL_NAME"
+    # For API token auth, we use the API token directly
+    CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel create "$TUNNEL_NAME"
 else
     # Use certificate authentication
     cloudflared tunnel create "$TUNNEL_NAME"
@@ -213,7 +222,7 @@ print_info "Routing traffic to tunnel..."
 if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
     # Use API token authentication
     API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
-    TUNNEL_ORIGIN_CERT="$TUNNEL_DIR/config.yml" CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN"
+    CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN"
 else
     # Use certificate authentication
     cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN"
@@ -237,7 +246,6 @@ if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.ym
     API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
     sudo tee -a /etc/systemd/system/cloudflared.service > /dev/null << EOF
 Environment="CLOUDFLARE_API_TOKEN=$API_TOKEN"
-Environment="TUNNEL_ORIGIN_CERT=$TUNNEL_DIR/config.yml"
 EOF
 fi
 
