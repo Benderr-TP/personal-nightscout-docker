@@ -166,8 +166,9 @@ print_info "Creating tunnel: $TUNNEL_NAME"
 if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
     # Use API token authentication
     API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
-    # For API token auth, we use the API token directly
-    CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel create "$TUNNEL_NAME"
+    # For API token auth, create a dummy cert file and use it
+    echo "dummy" > "$TUNNEL_DIR/dummy-cert.pem"
+    CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel create "$TUNNEL_NAME" --origincert "$TUNNEL_DIR/dummy-cert.pem"
 else
     # Use certificate authentication
     cloudflared tunnel create "$TUNNEL_NAME"
@@ -222,7 +223,7 @@ print_info "Routing traffic to tunnel..."
 if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
     # Use API token authentication
     API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
-    CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN"
+    CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN" --origincert "$TUNNEL_DIR/dummy-cert.pem"
 else
     # Use certificate authentication
     cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN"
@@ -246,6 +247,7 @@ if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.ym
     API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
     sudo tee -a /etc/systemd/system/cloudflared.service > /dev/null << EOF
 Environment="CLOUDFLARE_API_TOKEN=$API_TOKEN"
+Environment="TUNNEL_ORIGIN_CERT=$TUNNEL_DIR/dummy-cert.pem"
 EOF
 fi
 
