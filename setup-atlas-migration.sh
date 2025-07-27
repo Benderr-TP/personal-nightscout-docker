@@ -305,7 +305,7 @@ fi
 
 # Import data using mongorestore inside the container
 print_info "Importing data using mongorestore..."
-IMPORT_CMD="mongorestore --db $DATABASE_NAME --drop /tmp/import_data"
+IMPORT_CMD="mongorestore --db $DATABASE_NAME --drop --username root --password $MONGO_PASSWORD --authenticationDatabase admin /tmp/import_data"
 
 if [ "$USE_OPLOG" = true ]; then
     IMPORT_CMD="$IMPORT_CMD --oplogReplay"
