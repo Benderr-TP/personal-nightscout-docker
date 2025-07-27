@@ -305,6 +305,8 @@ fi
 
 # Import data using mongorestore inside the container
 print_info "Importing data using mongorestore..."
+# URL-encode the password for the connection string
+MONGO_PASSWORD_ENCODED=$(echo "$MONGO_PASSWORD" | sed 's/+/%2B/g; s/\//%2F/g; s/=/%3D/g')
 IMPORT_CMD="mongorestore --db $DATABASE_NAME --drop --username root --password $MONGO_PASSWORD --authenticationDatabase admin /tmp/import_data"
 
 if [ "$USE_OPLOG" = true ]; then
