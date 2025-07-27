@@ -52,8 +52,8 @@ cloudflared tunnel list
 
 # Ask which tunnel to use
 echo
-read -p "Enter the tunnel name to use (or press Enter for 'nightscout-ben'): " TUNNEL_NAME
-TUNNEL_NAME=${TUNNEL_NAME:-nightscout-ben}
+read -p "Enter the tunnel name to use (or press Enter for 'ns-tunnel-ben'): " TUNNEL_NAME
+TUNNEL_NAME=${TUNNEL_NAME:-ns-tunnel-ben}
 
 print_info "Using tunnel: $TUNNEL_NAME"
 

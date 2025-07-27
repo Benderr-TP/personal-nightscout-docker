@@ -45,13 +45,13 @@ echo
 read -p "Enter tunnel names to delete (space-separated, or 'all' for all except nightscout-ben): " TUNNELS_TO_DELETE
 
 if [ "$TUNNELS_TO_DELETE" = "all" ]; then
-    print_info "Deleting all tunnels except 'nightscout-ben'..."
+    print_info "Deleting all tunnels except 'ns-tunnel-ben'..."
     
-    # Get list of tunnels to delete (all except nightscout-ben)
-    TUNNELS_TO_DELETE=$(cloudflared tunnel list --format json | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | grep -v "nightscout-ben" | tr '\n' ' ')
+    # Get list of tunnels to delete (all except ns-tunnel-ben)
+    TUNNELS_TO_DELETE=$(cloudflared tunnel list --format json | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | grep -v "ns-tunnel-ben" | tr '\n' ' ')
     
     if [ -z "$TUNNELS_TO_DELETE" ]; then
-        print_info "No tunnels to delete (only nightscout-ben exists)"
+        print_info "No tunnels to delete (only ns-tunnel-ben exists)"
         exit 0
     fi
 fi

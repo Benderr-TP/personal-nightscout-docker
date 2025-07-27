@@ -171,9 +171,9 @@ fi
 
 # Get tunnel name from user
 print_info "Creating tunnel..."
-read -p "Enter a name for your tunnel (e.g., nightscout-tunnel): " TUNNEL_NAME
+read -p "Enter a name for your tunnel (e.g., ns-tunnel-ben): " TUNNEL_NAME
 if [ -z "$TUNNEL_NAME" ]; then
-    TUNNEL_NAME="nightscout-tunnel"
+    TUNNEL_NAME="ns-tunnel-ben"
 fi
 
 # Create tunnel
