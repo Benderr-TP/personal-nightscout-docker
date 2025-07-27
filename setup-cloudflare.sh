@@ -165,7 +165,7 @@ fi
 print_info "Creating tunnel: $TUNNEL_NAME"
 if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
     # Use API token authentication
-    API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
+    API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | sed 's/api_token: //')
     # For API token auth, create a dummy cert file and use it
     echo "dummy" > "$TUNNEL_DIR/dummy-cert.pem"
     CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel create "$TUNNEL_NAME" --origincert "$TUNNEL_DIR/dummy-cert.pem"
@@ -192,7 +192,7 @@ if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.ym
     # API token configuration
     cat > "$TUNNEL_DIR/config.yml" << EOF
 # Cloudflare API Token Configuration
-api_token: $(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
+api_token: $(grep "api_token:" "$TUNNEL_DIR/config.yml" | sed 's/api_token: //')
 
 # Tunnel Configuration
 tunnel: $TUNNEL_ID
@@ -222,7 +222,7 @@ print_status "Tunnel configuration created"
 print_info "Routing traffic to tunnel..."
 if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
     # Use API token authentication
-    API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
+    API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | sed 's/api_token: //')
     CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN" --origincert "$TUNNEL_DIR/dummy-cert.pem"
 else
     # Use certificate authentication
@@ -244,7 +244,7 @@ EOF
 
 # Add environment variables for API token if using API token authentication
 if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
-    API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
+    API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | sed 's/api_token: //')
     sudo tee -a /etc/systemd/system/cloudflared.service > /dev/null << EOF
 Environment="CLOUDFLARE_API_TOKEN=$API_TOKEN"
 Environment="TUNNEL_ORIGIN_CERT=$TUNNEL_DIR/dummy-cert.pem"
