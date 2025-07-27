@@ -156,7 +156,8 @@ fi
 print_info "Creating tunnel: $TUNNEL_NAME"
 if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
     # Use API token authentication
-    cloudflared tunnel create "$TUNNEL_NAME" --config "$TUNNEL_DIR/config.yml"
+    API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
+    CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel create "$TUNNEL_NAME"
 else
     # Use certificate authentication
     cloudflared tunnel create "$TUNNEL_NAME"
@@ -210,7 +211,8 @@ print_status "Tunnel configuration created"
 print_info "Routing traffic to tunnel..."
 if [ -f "$TUNNEL_DIR/config.yml" ] && grep -q "api_token" "$TUNNEL_DIR/config.yml"; then
     # Use API token authentication
-    cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN" --config "$TUNNEL_DIR/config.yml"
+    API_TOKEN=$(grep "api_token:" "$TUNNEL_DIR/config.yml" | cut -d' ' -f2)
+    CLOUDFLARE_API_TOKEN="$API_TOKEN" cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN"
 else
     # Use certificate authentication
     cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN"
