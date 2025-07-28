@@ -46,7 +46,6 @@ fi
 print_info "Stopping and removing containers..."
 if docker ps -a --format "table {{.Names}}" | grep -q "nightscout"; then
     docker-compose down -v
-    docker-compose -f docker-compose.proxmox.yml down -v
     print_status "Containers stopped and removed"
 else
     print_info "No Nightscout containers found"

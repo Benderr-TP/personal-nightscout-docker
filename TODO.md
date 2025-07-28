@@ -42,7 +42,7 @@ Implement comprehensive Prometheus metrics monitoring for the Nightscout Docker 
 #### Phase 4: Deployment Integration
 - [ ] Create setup script for Prometheus stack
 - [ ] Update existing docker-compose files
-- [ ] Add monitoring to Proxmox deployment
+
 - [ ] Create backup/restore procedures for monitoring data
 - [ ] Document monitoring setup and maintenance
 

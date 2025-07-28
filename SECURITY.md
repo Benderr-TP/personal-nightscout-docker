@@ -2,17 +2,7 @@
 
 ## ⚠️ Important Security Notes
 
-### Proxmox Deployment Security
 
-**LXC vs VM Deployment:**
-- **LXC containers with Docker nesting expose security risks**
-- Docker in LXC exposes `/sys` and `/proc` with write permissions
-- **Recommendation: Use VM deployment for production environments**
-
-**If using LXC (development only):**
-- Only use in trusted environments
-- Enable nesting only when necessary
-- Monitor container activity closely
 
 ### Authentication & Secrets
 

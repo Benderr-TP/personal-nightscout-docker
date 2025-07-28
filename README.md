@@ -1,6 +1,6 @@
 # Nightscout Docker Deployment with Cloudflare Tunnel
 
-Comprehensive Docker setup for deploying Nightscout with secure external access via Cloudflare Tunnel. Designed for local development and Proxmox production deployment.
+Comprehensive Docker setup for deploying Nightscout with secure external access via Cloudflare Tunnel. Designed for local development and production deployment.
 
 ## Quick Start
 
@@ -40,10 +40,7 @@ This will:
    docker-compose up -d
    ```
 
-3. **For Proxmox deployment:**
-   ```bash
-   docker-compose -f docker-compose.proxmox.yml up -d
-   ```
+
 
 ### Manual Cloudflare Tunnel Setup
 
@@ -177,43 +174,7 @@ If the Cloudflare tunnel setup fails or doesn't provide external access:
 - `CUSTOM_TITLE`: Your Nightscout site title
 - `ENABLE`: Features to enable (see Nightscout documentation)
 
-## Deployment to Proxmox
 
-### Prerequisites
-
-1. Proxmox server with Docker installed
-2. Domain name or DDNS setup
-3. Reverse proxy configured (optional but recommended)
-
-### Steps
-
-1. **Transfer files to Proxmox:**
-   ```bash
-   scp -r . user@proxmox-server:/path/to/nightscout/
-   ```
-
-2. **SSH into Proxmox and navigate to directory:**
-   ```bash
-   ssh user@proxmox-server
-   cd /path/to/nightscout/
-   ```
-
-3. **Set up environment:**
-   ```bash
-   cp .env.example .env
-   nano .env  # Edit with your settings
-   ```
-
-4. **Deploy:**
-   ```bash
-   docker-compose -f docker-compose.proxmox.yml up -d
-   ```
-
-5. **Check status:**
-   ```bash
-   docker-compose -f docker-compose.proxmox.yml ps
-   docker-compose -f docker-compose.proxmox.yml logs
-   ```
 
 ## Management Commands
 
@@ -224,14 +185,14 @@ If the Cloudflare tunnel setup fails or doesn't provide external access:
 
 ### View logs
 ```bash
-docker-compose -f docker-compose.proxmox.yml logs -f
+docker-compose logs -f
 ```
 
 ### Update Nightscout
 ```bash
-docker-compose -f docker-compose.proxmox.yml down
-docker-compose -f docker-compose.proxmox.yml pull
-docker-compose -f docker-compose.proxmox.yml up -d
+docker-compose down
+docker-compose pull
+docker-compose up -d
 ```
 
 ### Backup MongoDB
@@ -241,7 +202,7 @@ docker exec nightscout_mongo mongodump --out /data/db/backup
 
 ### Stop services
 ```bash
-docker-compose -f docker-compose.proxmox.yml down
+docker-compose down
 ```
 
 ### Cloudflare Tunnel Management
@@ -273,7 +234,6 @@ docker-compose -f docker-compose.proxmox.yml down
 
 After deployment, Nightscout will be available at:
 - **Local:** `http://localhost:8080`
-- **Proxmox:** `http://your-proxmox-ip:8080`
 - **Cloudflare Tunnel:** `https://your-domain.com` (secure, external access)
 
 **Note:** Port 8080 is mapped to Nightscout's internal port 1337.
@@ -372,7 +332,7 @@ ls -la *.sh
 2. **Debug tunnels:** `./debug-tunnel.sh` for Cloudflare issues
 3. **Check logs:** `docker-compose logs -f`
 4. **Review documentation:** [Nightscout docs](https://nightscout.github.io/) and [Cloudflare Tunnel docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
-5. **Check specific deployment notes:** [DEPLOY.md](DEPLOY.md) for Proxmox-specific issues
+5. **Check logs and troubleshoot:** Use the provided debug scripts for issues
 
 ### Current Cloudflare API Commands (2025)
 

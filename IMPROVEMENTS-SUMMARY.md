@@ -61,7 +61,7 @@ After conducting a comprehensive analysis of the Nightscout Docker deployment co
 
 ### ✅ **Excellent DevOps Practices**
 - **15+ comprehensive management scripts** covering all aspects of deployment
-- **Multiple deployment options** (local, Proxmox VM, LXC container)
+- **Multiple deployment options** (local, production)
 - **Security-first approach** with Cloudflare tunnel integration
 - **Production-ready configurations** with proper health checks and logging
 - **Comprehensive documentation** with clear examples and troubleshooting

@@ -210,7 +210,7 @@ mkdir -p "$CONFIG_BACKUP"
 # Copy important files
 cp .env "$CONFIG_BACKUP/" 2>/dev/null || print_warning "Could not copy .env"
 cp docker-compose.yml "$CONFIG_BACKUP/" 2>/dev/null || print_warning "Could not copy docker-compose.yml"
-cp docker-compose.proxmox.yml "$CONFIG_BACKUP/" 2>/dev/null || print_warning "Could not copy docker-compose.proxmox.yml"
+
 
 # Copy Cloudflare tunnel config if exists
 if [ -d ~/.cloudflared ]; then

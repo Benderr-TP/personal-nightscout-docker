@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a production-ready Docker deployment for Nightscout (Continuous Glucose Monitoring visualization platform) with comprehensive DevOps tooling, Cloudflare tunnel integration, and Proxmox deployment support.
+This is a production-ready Docker deployment for Nightscout (Continuous Glucose Monitoring visualization platform) with comprehensive DevOps tooling and Cloudflare tunnel integration.
 
 ### Key Components
 
@@ -15,23 +15,22 @@ This is a production-ready Docker deployment for Nightscout (Continuous Glucose 
 ## Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Cloudflare    │    │   Docker Host   │    │   Proxmox VM    │
-│     Tunnel      │◄──►│   (Optional)    │◄──►│   (Production)  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   External      │    │   Nightscout    │    │   MongoDB       │
-│   Access        │    │   Container     │    │   Container     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐
+│   Cloudflare    │    │   Docker Host   │
+│     Tunnel      │◄──►│   (Production)  │
+└─────────────────┘    └─────────────────┘
+         │                       │
+         ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐
+│   External      │    │   Nightscout    │
+│   Access        │    │   Container     │
+└─────────────────┘    └─────────────────┘
 ```
 
 ## File Structure
 
 ### Core Configuration
-- `docker-compose.yml` - Local development configuration
-- `docker-compose.proxmox.yml` - Production Proxmox deployment
+- `docker-compose.yml` - Production configuration
 - `Dockerfile` - Custom Nightscout image (if needed)
 - `.env.example` - Environment template
 
@@ -53,7 +52,6 @@ This is a production-ready Docker deployment for Nightscout (Continuous Glucose 
 
 ### Documentation
 - `README.md` - Main documentation
-- `DEPLOY.md` - Proxmox deployment guide
 - `MIGRATION.md` - Migration procedures
 - `SECURITY.md` - Security considerations
 - `TODO.md` - Future enhancements
@@ -86,19 +84,7 @@ docker-compose up -d
 docker-compose up -d
 ```
 
-### 3. Production Deployment (Proxmox)
-```bash
-# Transfer to Proxmox server
-scp -r . user@proxmox-server:/opt/nightscout/
 
-# SSH to server and setup
-ssh user@proxmox-server
-cd /opt/nightscout
-./setup.sh --domain your.domain.com --setup-tunnel
-
-# Deploy with production config
-docker-compose -f docker-compose.proxmox.yml up -d
-```
 
 ## Environment Configuration
 
@@ -306,11 +292,7 @@ free -h
 - Access via `http://localhost:8080`
 - Full development environment
 
-### Proxmox VM (Production)
-- Use `docker-compose.proxmox.yml`
-- Automated backups via Proxmox
-- Resource monitoring
-- High availability setup
+
 
 ### LXC Container (Development Only)
 - Limited security isolation

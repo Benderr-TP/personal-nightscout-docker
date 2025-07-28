@@ -14,7 +14,7 @@ docker-compose up -d
 docker-compose up -d
 
 # Production deployment
-docker-compose -f docker-compose.proxmox.yml up -d
+docker-compose up -d
 ```
 
 ### Health Checks

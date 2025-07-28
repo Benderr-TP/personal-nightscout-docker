@@ -438,7 +438,6 @@ else
         echo "2. Start Nightscout: docker-compose up -d"
         echo "3. Verify it's running: curl http://localhost:8080/api/v1/status"
         echo "4. For Cloudflare tunnel: ./setup-cloudflare.sh"
-        echo "5. For Proxmox deployment: docker-compose -f docker-compose.proxmox.yml up -d"
         echo
         
         # Offer to start Nightscout and setup tunnel interactively

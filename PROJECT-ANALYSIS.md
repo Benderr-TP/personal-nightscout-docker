@@ -8,7 +8,7 @@ This is a **well-architected, production-ready Nightscout deployment** with comp
 
 ### ✅ Excellent DevOps Practices
 - **Comprehensive automation** with 15+ management scripts
-- **Multiple deployment options** (local, Proxmox VM, LXC)
+- **Multiple deployment options** (local, production)
 - **Security-first approach** with Cloudflare tunnel integration
 - **Production-ready configurations** with proper health checks
 - **Comprehensive documentation** with clear examples

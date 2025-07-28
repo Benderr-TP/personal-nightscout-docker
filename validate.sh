@@ -196,9 +196,7 @@ if [ $? -eq 0 ]; then
     echo "2. Check logs: docker-compose logs -f"
     echo "3. Access Nightscout: http://localhost:1337"
     echo
-    echo "For Proxmox deployment:"
-    echo "1. Start containers: docker-compose -f docker-compose.proxmox.yml up -d"
-    echo "2. Check logs: docker-compose -f docker-compose.proxmox.yml logs -f"
+
 else
     print_error "Configuration validation failed"
     echo "Please fix the issues above and run validation again."
