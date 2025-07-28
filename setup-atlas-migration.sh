@@ -37,6 +37,46 @@ print_step() {
     echo -e "${BLUE}🔄 Step $1:${NC} $2"
 }
 
+# Function to validate database naming and connection
+validate_database_setup() {
+    local db_name="$1"
+    local connection_string="$2"
+    
+    print_info "Validating database setup..."
+    
+    # Check if database name is provided
+    if [ -z "$db_name" ]; then
+        print_error "Database name is empty or not provided"
+        return 1
+    fi
+    
+    # Check if connection string points to the correct database
+    if [[ "$connection_string" != *"/$db_name?"* ]]; then
+        print_warning "Connection string may not point to the correct database"
+        print_info "Expected database: $db_name"
+        print_info "Connection string: $connection_string"
+        return 1
+    fi
+    
+    # Test database connectivity
+    if docker-compose exec -T mongo mongo --username root --password "$MONGO_PASSWORD" --authenticationDatabase admin --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
+        print_status "Database connectivity verified"
+    else
+        print_error "Database connectivity test failed"
+        return 1
+    fi
+    
+    # Check if the target database exists and has data
+    local db_stats=$(docker-compose exec -T mongo mongo --username root --password "$MONGO_PASSWORD" --authenticationDatabase admin --quiet --eval "db.stats()" "$db_name" 2>/dev/null)
+    if [ $? -eq 0 ] && echo "$db_stats" | grep -q '"objects" : [1-9]'; then
+        print_status "Database '$db_name' exists and contains data"
+        return 0
+    else
+        print_warning "Database '$db_name' either doesn't exist or is empty"
+        return 1
+    fi
+}
+
 # Parse command line arguments
 DOMAIN=""
 INTERACTIVE=true
@@ -152,6 +192,15 @@ if [ "$INTERACTIVE" = true ]; then
     
     read -p "Database name (default: nightscout): " DATABASE_NAME
     DATABASE_NAME=${DATABASE_NAME:-nightscout}
+    
+    # Validate database name
+    if [[ "$DATABASE_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        print_status "Database name validated: $DATABASE_NAME"
+    else
+        print_error "Invalid database name: $DATABASE_NAME"
+        print_info "Database names can only contain letters, numbers, hyphens, and underscores"
+        exit 1
+    fi
     
     echo ""
     read -p "Use oplog for consistent export? (recommended) (Y/n): " -n 1 -r
@@ -332,6 +381,17 @@ MONGO_PASSWORD=$(grep "MONGO_INITDB_ROOT_PASSWORD=" .env | cut -d'=' -f2)
 MONGO_PASSWORD_ENCODED=$(echo "$MONGO_PASSWORD" | sed 's/+/%2B/g; s/\//%2F/g; s/=/%3D/g')
 sed -i.bak "s|MONGO_CONNECTION=.*|MONGO_CONNECTION=mongodb://root:$MONGO_PASSWORD_ENCODED@mongo:27017/$DATABASE_NAME?authSource=admin|" .env
 print_status "Updated connection string to use database: $DATABASE_NAME"
+
+# Validate database setup before starting Nightscout
+print_info "Validating database setup before starting Nightscout..."
+NEW_CONNECTION_STRING=$(grep "MONGO_CONNECTION=" .env | cut -d'=' -f2-)
+if validate_database_setup "$DATABASE_NAME" "$NEW_CONNECTION_STRING"; then
+    print_status "Database validation passed - Nightscout should connect properly"
+else
+    print_error "Database validation failed - Nightscout may not see your data"
+    print_info "Please check the database connection and try again"
+    exit 1
+fi
 
 # Step 6: Start full Nightscout application
 print_step "6" "Starting complete Nightscout application"
