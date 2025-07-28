@@ -259,7 +259,7 @@ print_status "Generated secure API_SECRET and MongoDB password"
 
 # Update MongoDB connection string with URL-encoded password
 MONGO_PASSWORD_ENCODED=$(echo "$MONGO_PASSWORD" | sed 's/+/%2B/g; s/\//%2F/g; s/=/%3D/g')
-sed -i.bak "s|MONGO_CONNECTION=.*|MONGO_CONNECTION=mongodb://root:$MONGO_PASSWORD_ENCODED@mongo:27017/nightscout?authSource=admin|" .env
+sed -i.bak "s|MONGO_CONNECTION=.*|MONGO_CONNECTION=mongodb://root:$MONGO_PASSWORD_ENCODED@mongo:27017/heroku_qqh7g5gj?authSource=admin|" .env
 
 print_status "Updated MongoDB connection string"
 

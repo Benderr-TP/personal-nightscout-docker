@@ -326,6 +326,13 @@ docker-compose exec -T mongo rm -rf /tmp/import_data
 
 print_status "MongoDB data import completed"
 
+# Update MongoDB connection string to use the original database name
+print_info "Updating MongoDB connection string..."
+MONGO_PASSWORD=$(grep "MONGO_INITDB_ROOT_PASSWORD=" .env | cut -d'=' -f2)
+MONGO_PASSWORD_ENCODED=$(echo "$MONGO_PASSWORD" | sed 's/+/%2B/g; s/\//%2F/g; s/=/%3D/g')
+sed -i.bak "s|MONGO_CONNECTION=.*|MONGO_CONNECTION=mongodb://root:$MONGO_PASSWORD_ENCODED@mongo:27017/$DATABASE_NAME?authSource=admin|" .env
+print_status "Updated connection string to use database: $DATABASE_NAME"
+
 # Step 6: Start full Nightscout application
 print_step "6" "Starting complete Nightscout application"
 
@@ -380,12 +387,13 @@ print_step "8" "Verification and cleanup"
 print_info "Verifying data migration..."
 
 # Test database connectivity
-if docker-compose exec -T mongo mongosh nightscout --eval "db.stats()" >/dev/null 2>&1; then
+if docker-compose exec -T mongo mongo --username root --password "$MONGO_PASSWORD" --authenticationDatabase admin --eval "db.stats()" "$DATABASE_NAME" >/dev/null 2>&1; then
     # Get collection counts
-    ENTRIES_COUNT=$(docker-compose exec -T mongo mongosh nightscout --quiet --eval "db.entries.countDocuments()")
-    TREATMENTS_COUNT=$(docker-compose exec -T mongo mongosh nightscout --quiet --eval "db.treatments.countDocuments()")
+    ENTRIES_COUNT=$(docker-compose exec -T mongo mongo --username root --password "$MONGO_PASSWORD" --authenticationDatabase admin --quiet --eval "db.entries.countDocuments()" "$DATABASE_NAME")
+    TREATMENTS_COUNT=$(docker-compose exec -T mongo mongo --username root --password "$MONGO_PASSWORD" --authenticationDatabase admin --quiet --eval "db.treatments.countDocuments()" "$DATABASE_NAME")
     
     print_status "Database verification:"
+    print_info "  - Database: $DATABASE_NAME"
     print_info "  - Entries: $ENTRIES_COUNT"
     print_info "  - Treatments: $TREATMENTS_COUNT"
 else
